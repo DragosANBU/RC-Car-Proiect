@@ -42,7 +42,7 @@ WebServer server(80);
 // ===================================================
 
 int currentSpeed = 0;      // -255 .. 255
-int currentSteer = 90;     // 0 .. 180 (90 = centru)
+int currentSteer = 90;     // 50 .. 130 (90 = centru)
 bool headlightManual = false;
 bool headlightOn = false;
 
@@ -58,6 +58,8 @@ const unsigned long SENSOR_INTERVAL = 60;
 
 unsigned long lastLuxRead = 0;
 const unsigned long LUX_INTERVAL = 300;
+
+bool parkingSensorsEnabled = true;  // daca e false, buzzerele stau oprite (senzorii de distanta continua sa citeasca pentru afisaj)
 
 // Buzzer 1 (fata) - stare non-blocanta
 bool buzzer1State = false;
@@ -165,13 +167,13 @@ const char index_html[] PROGMEM = R"rawliteral(
   .joyBase{
     position:relative;
     width:min(70vw, 260px); height:min(70vw, 260px);
-    border-radius:50%;
+    border-radius:22px;
     background:radial-gradient(circle at 50% 40%, #1c2027, #101317 70%);
     border:1px solid var(--panel-border);
     box-shadow: inset 0 0 30px rgba(0,0,0,.5);
   }
   .joyRing{
-    position:absolute; inset:0; border-radius:50%;
+    position:absolute; inset:0; border-radius:22px;
     border:2px solid var(--accent-dim);
     transition:border-color .15s, box-shadow .15s;
   }
@@ -248,6 +250,9 @@ const char index_html[] PROGMEM = R"rawliteral(
     background:var(--accent); color:#1a1300; border-color:var(--accent);
     box-shadow:0 0 16px rgba(255,179,0,.4);
   }
+  .lightBtn.off-state{
+    background:#1f1113; color:var(--danger); border-color:var(--danger);
+  }
   .stopWide{
     width:100%; margin-top:8px; padding:14px;
     background:var(--danger); color:#fff; border:none; border-radius:12px;
@@ -309,6 +314,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 <div class="bottomBar">
   <button class="lightBtn" id="lightBtn">&#128161;</button>
+  <button class="lightBtn" id="sensorBtn" title="Senzori parcare">&#128266;</button>
   <div class="sliderWrap">
     <div class="label">Limita viteza <span id="maxSpeedVal">255</span></div>
     <input type="range" id="maxSpeed" min="60" max="255" value="255">
@@ -320,6 +326,13 @@ const char index_html[] PROGMEM = R"rawliteral(
 <script>
 (function(){
   var lastSendOk = true, missCount = 0;
+
+  // Limitele mecanice ale servo-ului de directie (trebuie sa corespunda
+  // cu constrain()-ul din firmware: setSteer() limiteaza la 50..130)
+  var STEER_MIN = 50;
+  var STEER_MAX = 130;
+  var STEER_CENTER = 90;
+  var STEER_RANGE = STEER_MAX - STEER_CENTER; // 40
 
   function sendControl(speed, steer){
     var url = '/control?speed=' + Math.round(speed) + '&steer=' + Math.round(steer);
@@ -364,7 +377,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   var ring = document.getElementById('joyRing');
   var dragging = false;
   var sendTimer = null;
-  var curSpeed = 0, curSteer = 90;
+  var curSpeed = 0, curSteer = STEER_CENTER;
 
   function updateReadout(){
     document.getElementById('rSpeed').textContent = Math.round(curSpeed);
@@ -385,14 +398,16 @@ const char index_html[] PROGMEM = R"rawliteral(
     var p = pointerPos(e);
     var dx = p.x - cx, dy = p.y - cy;
     var radius = rect.width/2 - 32;
-    var dist = Math.sqrt(dx*dx + dy*dy);
-    if(dist > radius){ dx = dx/dist*radius; dy = dy/dist*radius; }
+    // Clamp pe patrat (fiecare axa independent), nu pe cerc -
+    // asa se poate obtine viteza maxima chiar si cu directia la maxim (viraj).
+    dx = Math.max(-radius, Math.min(radius, dx));
+    dy = Math.max(-radius, Math.min(radius, dy));
     stick.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
 
     var maxSpeed = parseInt(maxSpeedInput.value, 10);
     curSpeed = (-dy/radius) * maxSpeed;
-    curSteer = 90 + (dx/radius) * 90;
-    curSteer = Math.max(0, Math.min(180, curSteer));
+    curSteer = STEER_CENTER + (dx/radius) * STEER_RANGE;
+    curSteer = Math.max(STEER_MIN, Math.min(STEER_MAX, curSteer));
     updateReadout();
   }
 
@@ -407,7 +422,7 @@ const char index_html[] PROGMEM = R"rawliteral(
     dragging = false;
     ring.classList.remove('active');
     stick.style.transform = 'translate(-50%,-50%)';
-    curSpeed = 0; curSteer = 90;
+    curSpeed = 0; curSteer = STEER_CENTER;
     updateReadout();
     if(sendTimer){ clearInterval(sendTimer); sendTimer=null; }
     sendStop();
@@ -430,11 +445,11 @@ const char index_html[] PROGMEM = R"rawliteral(
       e.preventDefault();
       btn.classList.add('pressed');
       var maxSpeed = parseInt(maxSpeedInput.value, 10);
-      var speed = 0, steer = 90;
-      if(dir === 'fwd'){ speed = maxSpeed; steer = 90; }
-      if(dir === 'back'){ speed = -maxSpeed; steer = 90; }
-      if(dir === 'left'){ speed = Math.round(maxSpeed*0.6); steer = 35; }
-      if(dir === 'right'){ speed = Math.round(maxSpeed*0.6); steer = 145; }
+      var speed = 0, steer = STEER_CENTER;
+      if(dir === 'fwd'){ speed = maxSpeed; steer = STEER_CENTER; }
+      if(dir === 'back'){ speed = -maxSpeed; steer = STEER_CENTER; }
+      if(dir === 'left'){ speed = Math.round(maxSpeed*0.6); steer = STEER_MIN; }
+      if(dir === 'right'){ speed = Math.round(maxSpeed*0.6); steer = STEER_MAX; }
       document.getElementById('rSpeed').textContent = speed;
       document.getElementById('rSteer').textContent = steer;
       if(dpadTimer) clearInterval(dpadTimer);
@@ -445,7 +460,7 @@ const char index_html[] PROGMEM = R"rawliteral(
       btn.classList.remove('pressed');
       if(dpadTimer){ clearInterval(dpadTimer); dpadTimer=null; }
       document.getElementById('rSpeed').textContent = 0;
-      document.getElementById('rSteer').textContent = 90;
+      document.getElementById('rSteer').textContent = STEER_CENTER;
       sendStop();
     }
     btn.addEventListener('touchstart', press, {passive:false});
@@ -459,7 +474,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   document.getElementById('bigStop').addEventListener('click', function(){
     if(dpadTimer){ clearInterval(dpadTimer); dpadTimer=null; }
     if(sendTimer){ clearInterval(sendTimer); sendTimer=null; }
-    curSpeed = 0; curSteer = 90;
+    curSpeed = 0; curSteer = STEER_CENTER;
     updateReadout();
     sendStop();
   });
@@ -473,6 +488,21 @@ const char index_html[] PROGMEM = R"rawliteral(
     fetch('/light?state=' + (lightOn ? 'on' : 'off')).catch(function(){});
   });
 
+  // ---------- Senzori de parcare (buzzere) ----------
+  var sensorBtn = document.getElementById('sensorBtn');
+  var sensorsOn = true;
+  var sensorsSynced = false; // primul /status stabileste starea reala de la firmware
+  function renderSensorBtn(){
+    sensorBtn.innerHTML = sensorsOn ? '&#128266;' : '&#128263;';
+    sensorBtn.classList.toggle('on', false);
+    sensorBtn.classList.toggle('off-state', !sensorsOn);
+  }
+  sensorBtn.addEventListener('click', function(){
+    sensorsOn = !sensorsOn;
+    renderSensorBtn();
+    fetch('/sensors?state=' + (sensorsOn ? 'on' : 'off')).catch(function(){});
+  });
+
   // ---------- Status polling ----------
   function poll(){
     fetch('/status').then(function(r){ return r.json(); }).then(function(d){
@@ -482,6 +512,11 @@ const char index_html[] PROGMEM = R"rawliteral(
       document.getElementById('luxVal').textContent = d.lux.toFixed(0) + ' lx';
       document.getElementById('tileFront').classList.toggle('warn', d.front >= 0 && d.front < 30);
       document.getElementById('tileRear').classList.toggle('warn', d.rear >= 0 && d.rear < 30);
+      if(!sensorsSynced && typeof d.sensors === 'boolean'){
+        sensorsOn = d.sensors;
+        renderSensorBtn();
+        sensorsSynced = true;
+      }
     }).catch(function(){ missCount++; if(missCount > 3) setConn(false); });
   }
   setInterval(poll, 500);
@@ -574,10 +609,11 @@ void setup() {
   server.on("/control", handleControl);
   server.on("/stop", handleStop);
   server.on("/light", handleLight);
+  server.on("/sensors", handleSensors);
   server.on("/status", handleStatus);
   server.begin();
   Serial.println("[WEB SERVER] pornit pe portul 80");
-  Serial.println("[WEB SERVER] rute active: / , /control , /stop , /light , /status");
+  Serial.println("[WEB SERVER] rute active: / , /control , /stop , /light , /sensors , /status");
 
   // Animatie pornire
   for (int i = 0; i < 3; i++) {
@@ -624,7 +660,7 @@ void driveMotors(int speed) {
 }
 
 void setSteer(int angle) {
-  angle = constrain(angle, 0, 180);
+  angle = constrain(angle, 50, 130);
   steeringServo.write(angle);
   currentSteer = angle;
 
@@ -678,11 +714,30 @@ void handleLight() {
   server.send(200, "text/plain", "ok");
 }
 
+void handleSensors() {
+  if (server.hasArg("state")) {
+    parkingSensorsEnabled = (server.arg("state") == "on");
+
+    if (!parkingSensorsEnabled) {
+      // Oprim imediat ambele buzzere si resetam starea lor
+      digitalWrite(BUZZER1_PIN, HIGH);
+      digitalWrite(BUZZER2_PIN, HIGH);
+      buzzer1State = false;
+      buzzer2State = false;
+    }
+
+    Serial.print("[SENZORI PARCARE] comanda manuala -> ");
+    Serial.println(parkingSensorsEnabled ? "PORNITI" : "OPRITI");
+  }
+  server.send(200, "text/plain", "ok");
+}
+
 void handleStatus() {
-  char buf[128];
+  char buf[160];
   snprintf(buf, sizeof(buf),
-    "{\"front\":%.1f,\"rear\":%.1f,\"lux\":%.1f,\"light\":%s}",
-    distanceFront, distanceRear, lux, headlightOn ? "true" : "false");
+    "{\"front\":%.1f,\"rear\":%.1f,\"lux\":%.1f,\"light\":%s,\"sensors\":%s}",
+    distanceFront, distanceRear, lux, headlightOn ? "true" : "false",
+    parkingSensorsEnabled ? "true" : "false");
   server.send(200, "application/json", buf);
 
   Serial.print("[WEB] /status trimis -> ");
@@ -818,8 +873,10 @@ void loop() {
     if (distanceRear < 0) Serial.println("fara ecou");
     else { Serial.print(distanceRear); Serial.println(" cm"); }
 
-    updateBuzzer(distanceFront, BUZZER1_PIN, buzzer1State, buzzer1LastToggle, "FATA");
-    updateBuzzer(distanceRear,  BUZZER2_PIN, buzzer2State, buzzer2LastToggle, "SPATE");
+    if (parkingSensorsEnabled) {
+      updateBuzzer(distanceFront, BUZZER1_PIN, buzzer1State, buzzer1LastToggle, "FATA");
+      updateBuzzer(distanceRear,  BUZZER2_PIN, buzzer2State, buzzer2LastToggle, "SPATE");
+    }
   }
 
   // --- Senzor de lumina + faruri automate (daca nu sunt controlate manual) ---
