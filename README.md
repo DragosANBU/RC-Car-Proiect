@@ -31,9 +31,7 @@ Proiect realizat în cadrul facultății ce constă într-o mașinuță RC contr
 
 Schema de conectare este prezentată mai jos.
 
-![Schema RC Car](schema.png)
-
-> Înlocuiește `schema.png` cu numele imaginii din repository.
+![Schema RC Car](schema_electrica.png)
 
 ## Structura proiectului
 
