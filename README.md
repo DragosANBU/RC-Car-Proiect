@@ -2,6 +2,12 @@
 
 Proiect realizat în cadrul facultății ce constă într-o mașinuță RC controlată prin intermediul unui ESP32 și al unei interfețe web accesibile de pe telefon.
 
+## DEMO
+
+[RC-CAR](https://youtube.com/shorts/wE6PHsZGV6w)
+
+[WebApp](https://www.youtube.com/shorts/Gxu313YEjeU)
+
 ## Funcționalități
 
 - Control prin Wi-Fi folosind ESP32 în modul Access Point.
