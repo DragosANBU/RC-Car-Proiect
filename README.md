@@ -36,7 +36,7 @@ Schema de conectare este prezentată mai jos.
 ## Structura proiectului
 
 - `RC-Car-Proiect.ino` – codul principal pentru ESP32.
-- `schema.png` – schema electrică a proiectului.
+- `schema_electrica.png` – schema electrică a proiectului.
 
 ## Cum se utilizează
 
