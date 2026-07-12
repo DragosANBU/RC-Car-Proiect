@@ -2,6 +2,12 @@
 
 Proiect realizat în cadrul facultății ce constă într-o mașinuță RC controlată prin intermediul unui ESP32 și al unei interfețe web accesibile de pe telefon.
 
+## DEMO
+
+[RC-CAR](https://youtube.com/shorts/wE6PHsZGV6w)
+
+[WebApp](https://www.youtube.com/shorts/Gxu313YEjeU)
+
 ## Funcționalități
 
 - Control prin Wi-Fi folosind ESP32 în modul Access Point.
@@ -10,7 +16,7 @@ Proiect realizat în cadrul facultății ce constă într-o mașinuță RC contr
 - Servo pentru direcție.
 - Motoare DC controlate prin driver.
 - Senzori ultrasonici față și spate pentru detectarea obstacolelor.
-- Buzzere pentru avertizare în funcție de distanță.
+- Buzzere pentru avertizare în funcție de distanță cu buton pentru dezactivare sunet.
 - Senzor de lumină BH1750.
 - Aprinderea automată sau manuală a farurilor.
 - Oprire automată în cazul pierderii conexiunii.
@@ -18,14 +24,17 @@ Proiect realizat în cadrul facultății ce constă într-o mașinuță RC contr
 ## Componente utilizate
 
 - ESP32
-- Driver motoare
-- 2 × Motoare DC
-- Servomotor
+- Driver motoare TB6612FNG
+- 2 × Motoare DC N20 6V 500rpm
+- Servomotor MG946R
 - 2 × Senzor ultrasonic HC-SR04
 - 2 × Buzzere
 - Senzor de lumină BH1750
-- LED pentru far
-- Alimentare cu baterii
+- 8 x LED-uri
+- Alimentare cu 4 x baterii 18650
+- 2 x Buck convertor step-down DC-DC
+- Switch
+- Rezistente, Condensatori, Siguranta.
 
 ## Schema proiectului
 
@@ -36,7 +45,7 @@ Schema de conectare este prezentată mai jos.
 ## Structura proiectului
 
 - `RC-Car-Proiect.ino` – codul principal pentru ESP32.
-- `schema.png` – schema electrică a proiectului.
+- `schema_electrica.png` – schema electrică a proiectului.
 
 ## Cum se utilizează
 
